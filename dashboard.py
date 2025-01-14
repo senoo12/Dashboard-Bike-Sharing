@@ -87,7 +87,6 @@ workingday_group = filtered_data.groupby('workingday')['cnt'].sum()
 total_working_day = workingday_group.get('working day', 0)
 total_day_off = workingday_group.get('day off', 0)
 
-st.markdown("### Total CNT Berdasarkan Hari Kerja dan Hari Libur")
 st.write(f"Total CNT pada Hari Kerja: {total_working_day}")
 st.write(f"Total CNT pada Hari Libur: {total_day_off}")
 
