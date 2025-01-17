@@ -2,92 +2,108 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Judul
-st.title("Dashboard Bike Sharing")
+# Memproses data
+def load_data(file_path):
+    return pd.read_excel(file_path)
 
-# Sidebar
-st.sidebar.title("Dashboard Filter")
-st.sidebar.header("Informasi")
-st.sidebar.write("Gunakan sidebar untuk memilih filter.")
+# Membuat filter untuk dashboard
+def filter_data_dashboard(data, year_month):
+    filter_data = data[data['year-month'] == year_month]
+    st.header(f"Data untuk Bulan {year_month}")
+    st.dataframe(filter_data)
+    return filter_data
 
-# Data upload
-uploaded_file = 'main_data.xlsx'
-day_df = pd.read_excel(uploaded_file)
+# Grafik jumlah pengguna (Casual dan Registered)
+def amount_user(filter_data, year_month):
+    st.subheader("Grafik Pengguna (Casual dan Registered)")
+    total_casual_users = filter_data['casual'].sum()
+    total_registered_users = filter_data['registered'].sum()
 
-# Filter
-year_month = st.sidebar.selectbox("Pilih Tahun-Bulan:", day_df['year-month'].unique())
-st.sidebar.header("Filter Hari Kerja")
+    st.write(f"Total Pengguna Casual: {total_casual_users}")
+    st.write(f"Total Pengguna Registered: {total_registered_users}")
 
-working_day_filter = st.sidebar.radio("Pilih Hari Kerja:", ['Working Day', 'Day Off'])
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.bar(filter_data['dteday'], filter_data['casual'], label='Casual Users', color='skyblue', alpha=0.7)
+    ax.bar(filter_data['dteday'], filter_data['registered'], label='Registered Users', color='orange', alpha=0.7, bottom=filter_data['casual'])
+    ax.set_title(f"Pengguna Berdasarkan Tanggal - {year_month}")
+    ax.set_xlabel("Tanggal")
+    ax.set_ylabel("Jumlah Pengguna")
+    ax.legend()
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
 
-# Data berdasarkan filter
-st.header("Data Overview")
+# Distribusi kondisi cuaca
+def distribution_weather(filter_data):
+    st.subheader("Distribusi Berdasarkan Kondisi Cuaca")
+    distribution_weather = filter_data['weathersit'].value_counts()
 
-filtered_data = day_df[day_df['year-month'] == year_month]
-st.subheader(f"Data untuk {year_month}")
-st.dataframe(filtered_data)
+    for condition, count in distribution_weather.items():
+        st.write(f"Kondisi Cuaca {condition}: {count} hari")
 
-# Analisis Statistik
-st.header("Analisis Statistik")
-st.write(filtered_data.describe())
+    st.bar_chart(distribution_weather)
 
-# Total Pengguna (Casual dan Registered)
-st.subheader("Grafik Jumlah Pengguna (Casual dan Registered)")
+# Data berdasarkan hari kerja
+def workday(filter_data, working_day_filter):
+    st.subheader("Data Berdasarkan Hari Kerja / Libur")
+    if working_day_filter == 'Working Day':
+        filter_workday = filter_data[filter_data['workingday'] == 'working day']
+    else:
+        filter_workday = filter_data[filter_data['workingday'] == 'day off']
 
-total_casual = filtered_data['casual'].sum()
-total_registered = filtered_data['registered'].sum()
+    total_casual_workday = filter_workday['casual'].sum()
+    total_registered_workday = filter_workday['registered'].sum()
+    total_cnt_workday = filter_workday['cnt'].sum()
 
-st.write(f"Total Casual Users: {total_casual}")
-st.write(f"Total Registered Users: {total_registered}")
+    st.write(f"Pengguna Casual: {total_casual_workday}")
+    st.write(f"Pengguna Registered: {total_registered_workday}")
+    st.write(f"Total CNT: {total_cnt_workday}")
+    st.dataframe(filter_workday)
 
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.bar(filtered_data['dteday'], filtered_data['casual'], label='Casual', alpha=0.7)
-ax.bar(filtered_data['dteday'], filtered_data['registered'], label='Registered', alpha=0.7, bottom=filtered_data['casual'])
-ax.set_title(f"Jumlah Pengguna untuk {year_month}")
-ax.set_ylabel("Jumlah Pengguna")
-ax.set_xlabel("Tanggal")
-ax.legend()
-plt.xticks(rotation=45)
-st.pyplot(fig)
+# Perbedaan total pengguna berdasarkan hari kerja dan libur
+def comparison_workday_and_dayoff(filter_data):
+    st.subheader("Analisis Total Pengguna: Hari Kerja vs Hari Libur")
+    summary_workday = filter_data.groupby('workingday')['cnt'].sum()
 
-# Kondisi Cuaca
-st.subheader("Distribusi Kondisi Cuaca")
-weather_count = filtered_data['weathersit'].value_counts()
+    workday_cnt = summary_workday.get('working day', 0)
+    day_off_cnt = summary_workday.get('day off', 0)
 
-for weather, count in weather_count.items():
-    st.write(f"Kondisi Cuaca {weather}: {count} hari")
+    st.write(f"Total Pengguna pada Hari Kerja: {workday_cnt}")
+    st.write(f"Total Pengguna pada Hari Libur: {day_off_cnt}")
+    st.bar_chart(summary_workday)
 
-st.bar_chart(weather_count)
+def main():
+    # Judul dashboard
+    st.title("Dashboard Analisis Data Bike Sharing")
 
-# Rata-rata Temperatur dan Kelembapan
-st.subheader("Rata-rata Temperatur dan Kelembapan")
-avg_temp_hum = filtered_data[['temp', 'hum']].mean()
-st.write(avg_temp_hum)
+    # Sidebar untuk filter
+    st.sidebar.title("Filter Data Dashboard")
 
-# Data Berdasarkan Hari Kerja
-st.subheader("Data Berdasarkan Hari Kerja")
-if working_day_filter == 'Working Day':
-    workday_data = filtered_data[filtered_data['workingday'] == 'working day']
-else:
-    workday_data = filtered_data[filtered_data['workingday'] == 'day off']
+    # Upload data
+    uploaded_file = 'main_data.xlsx'
+    data = load_data(uploaded_file)
 
-total_casual_workday = workday_data['casual'].sum()
-total_registered_workday = workday_data['registered'].sum()
-total_cnt_workday = workday_data['cnt'].sum()
+    # Filter berdasarkan Tahun-Bulan
+    st.sidebar.header("Filter Tanggal")
+    selected_year_month = st.sidebar.selectbox("Pilih Tahun-Bulan:", data['year-month'].unique())
 
-st.write(f"Total Casual Users: {total_casual_workday}")
-st.write(f"Total Registered Users: {total_registered_workday}")
-st.write(f"Total Count: {total_cnt_workday}")
-st.dataframe(workday_data)
+    # Filter berdasarkan Hari Kerja
+    st.sidebar.header("Filter Hari Kerja")
+    workday_filter_option = st.sidebar.radio("Pilih Kategori Hari:", ['Working Day', 'Day Off'])
 
-# Total Pengguna di Hari Kerja dan Hari Libur
-st.subheader("Total Pengguna: Hari Kerja vs Hari Libur")
-workingday_group = filtered_data.groupby('workingday')['cnt'].sum()
+    # Menampilkan data yang difilter
+    filter_data = filter_data_dashboard(data, selected_year_month)
 
-total_working_day = workingday_group.get('working day', 0)
-total_day_off = workingday_group.get('day off', 0)
+    # Menampilkan grafik jumlah pengguna
+    amount_user(filter_data, selected_year_month)
 
-st.write(f"Total CNT pada Hari Kerja: {total_working_day}")
-st.write(f"Total CNT pada Hari Libur: {total_day_off}")
+    # Menampilkan distribusi kondisi cuaca
+    distribution_weather(filter_data)
 
-st.bar_chart(workingday_group)
+    # Menampilkan data berdasarkan hari kerja
+    workday(filter_data, workday_filter_option)
+
+    # Menampilkan total pengguna hari kerja vs libur
+    comparison_workday_and_dayoff(filter_data)
+
+if __name__ == "__main__":
+    main()
